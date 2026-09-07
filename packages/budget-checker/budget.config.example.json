@@ -1,0 +1,13 @@
+{
+  "lighthouse": {
+    "lcp": 2500,
+    "cls": 0.1,
+    "inp": 200,
+    "ttfb": 800,
+    "performanceScore": 75
+  },
+  "bundle": {
+    "totalSizeKb": 500,
+    "maxChunkSizeKb": 200
+  }
+}
