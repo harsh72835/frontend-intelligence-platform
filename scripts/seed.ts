@@ -7,6 +7,42 @@ const ROUTES = ["/", "/products", "/products/1", "/checkout", "/reports"]
 const RELEASES = ["1.0.0", "1.1.0", "1.2.0"]
 const SESSION_COUNT = 20
 
+// Bundle sizes growing across releases — matches the "progressively worse
+// LCP" story already told by lcpBase below, so the Bundles tab and the
+// Trends/Releases tabs tell a consistent regression narrative.
+const BUNDLE_REPORTS: Record<string, { totalSizeKb: number; gzipSizeKb: number; chunks: { name: string; sizeKb: number }[] }> = {
+  "1.0.0": {
+    totalSizeKb: 376,
+    gzipSizeKb: 118,
+    chunks: [
+      { name: "vendor", sizeKb: 200 },
+      { name: "main", sizeKb: 105 },
+      { name: "runtime", sizeKb: 43 },
+      { name: "styles", sizeKb: 28 },
+    ],
+  },
+  "1.1.0": {
+    totalSizeKb: 411,
+    gzipSizeKb: 126,
+    chunks: [
+      { name: "vendor", sizeKb: 220 },
+      { name: "main", sizeKb: 118 },
+      { name: "runtime", sizeKb: 43 },
+      { name: "styles", sizeKb: 30 },
+    ],
+  },
+  "1.2.0": {
+    totalSizeKb: 438,
+    gzipSizeKb: 134,
+    chunks: [
+      { name: "vendor", sizeKb: 220 },
+      { name: "main", sizeKb: 142 },
+      { name: "runtime", sizeKb: 43 },
+      { name: "styles", sizeKb: 33 },
+    ],
+  },
+}
+
 function rand(min: number, max: number) {
   return Math.floor(Math.random() * (max - min) + min)
 }
@@ -43,6 +79,17 @@ async function main() {
 
     // Simulate progressively worse LCP from 1.0.0 -> 1.2.0
     const lcpBase = version === "1.0.0" ? 1800 : version === "1.1.0" ? 2200 : 3100
+
+    const bundle = BUNDLE_REPORTS[version]!
+    await prisma.bundleReport.create({
+      data: {
+        appId: APP_ID,
+        releaseId: release.id,
+        totalSizeKb: bundle.totalSizeKb,
+        gzipSizeKb: bundle.gzipSizeKb,
+        chunks: bundle.chunks,
+      },
+    })
 
     for (let s = 0; s < SESSION_COUNT; s++) {
       const sessionId = generateId()
