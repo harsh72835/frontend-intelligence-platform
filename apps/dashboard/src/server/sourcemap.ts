@@ -1,4 +1,4 @@
-import { SourceMapConsumer } from "source-map-js"
+import { SourceMapConsumer, type RawSourceMap } from "source-map-js"
 import { prisma } from "./db"
 
 export type ResolvedFrame = {
@@ -34,7 +34,19 @@ async function getConsumer(appId: string, release: string, filename: string): Pr
   })
   if (!row) return null
 
-  const consumer = new SourceMapConsumer(row.content as string)
+  // row.content is the raw JSON text of the uploaded source map — the
+  // consumer needs it parsed into a RawSourceMap object, not the string
+  // itself (the previous `as string` cast here just relabeled the existing
+  // string type and never actually parsed it, which would have failed at
+  // runtime the first time this path actually ran).
+  let parsed: RawSourceMap
+  try {
+    parsed = JSON.parse(row.content) as RawSourceMap
+  } catch {
+    return null
+  }
+
+  const consumer = new SourceMapConsumer(parsed)
   cache.set(key, consumer)
   return consumer
 }
@@ -73,7 +85,7 @@ export async function resolveStack(
       source: pos.source,
       line: pos.line,
       column: pos.column,
-      name: pos.name,
+      name: pos.name ?? null,
       resolved: pos.source != null,
     })
   }

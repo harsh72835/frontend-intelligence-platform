@@ -1,19 +1,35 @@
 {
   "name": "@fip/budget-checker",
   "version": "0.1.0",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "description": "CI budget checker for Lighthouse scores and bundle sizes.",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
   "bin": {
-    "fip-budget": "./src/cli/index.ts"
+    "fip-budget": "./dist/cli.js"
   },
   "scripts": {
+    "build": "tsup && chmod +x dist/cli.js",
     "check": "tsx src/cli/index.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm build"
   },
   "dependencies": {
     "@fip/shared": "workspace:*"
   },
   "devDependencies": {
+    "tsup": "^8.5.1",
     "tsx": "^4.7.0",
     "typescript": "^5.4.0"
   }

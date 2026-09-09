@@ -1,6 +1,9 @@
 import { getErrorMetrics } from "@/server/analytics/errors"
 import type { ResolvedFrame } from "@/server/sourcemap"
 
+// See (dashboard)/page.tsx for why this is required.
+export const dynamic = "force-dynamic"
+
 const APP_ID = process.env.FIP_APP_ID ?? "sample-app"
 
 const kindColors: Record<string, { bg: string; color: string }> = {

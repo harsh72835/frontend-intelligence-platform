@@ -2,6 +2,11 @@ import { getOverviewMetrics } from "@/server/analytics/overview"
 import { getResourceMetrics } from "@/server/analytics/resources"
 import { MetricCard } from "@/components/MetricCard"
 
+// Without this, Next statically prerenders this page at build time (no
+// dynamic API is otherwise used) and serves frozen build-time telemetry to
+// every visitor in production instead of live data.
+export const dynamic = "force-dynamic"
+
 const APP_ID = process.env.FIP_APP_ID ?? "sample-app"
 
 function lcpStatus(v: number | null) {

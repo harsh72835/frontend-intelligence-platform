@@ -57,6 +57,9 @@ importers:
       source-map-js:
         specifier: ^1.2.1
         version: 1.2.1
+      zod:
+        specifier: ^3.22.4
+        version: 3.25.76
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
@@ -126,6 +129,9 @@ importers:
         specifier: workspace:*
         version: link:../shared
     devDependencies:
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(tsx@4.22.3)(typescript@5.9.3)
       tsx:
         specifier: ^4.7.0
         version: 4.22.3

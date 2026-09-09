@@ -1,4 +1,22 @@
+import { Prisma } from "@prisma/client"
 import { prisma } from "../db"
+
+// Retries a find-then-write op under Serializable isolation on a transient
+// write-conflict (Prisma P2034) — two concurrent aggregation runs racing to
+// create the same null-releaseId RouteSummary row will cause one of them to
+// lose the serialization check rather than silently duplicate the row; this
+// retries it as a plain update once the winner has committed.
+async function withSerializableRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn()
+    } catch (err) {
+      const isConflict = err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2034"
+      if (!isConflict || i === attempts - 1) throw err
+    }
+  }
+  throw new Error("unreachable")
+}
 
 function p75(sorted: number[]): number | null {
   if (sorted.length === 0) return null
@@ -100,43 +118,82 @@ export async function runAggregation(appId: string, windowHours = 48): Promise<A
     }
   }
 
-  // Upsert RouteSummary rows
+  // Upsert RouteSummary rows.
+  //
+  // Prisma's compound-unique `where` input for
+  // appId_releaseId_route_bucketStart_granularity requires releaseId to be
+  // `string`, not `string | null` — even though the column itself is
+  // nullable — because SQL treats every NULL as distinct from every other
+  // NULL, so a compound unique constraint containing a NULL column can't
+  // reliably identify "the" existing row to update. Events with no release
+  // attached (releaseId === null, e.g. telemetry sent before any release
+  // was tagged) can't go through upsert-by-compound-key at all; they need a
+  // manual find-then-write instead.
   const upsertOps = [...buckets.values()].map((g) => {
     g.lcpValues.sort((a, b) => a - b)
     g.inpValues.sort((a, b) => a - b)
+
+    const computed = {
+      p75Lcp: p75(g.lcpValues),
+      p75Inp: p75(g.inpValues),
+      avgCls: avg(g.clsValues),
+      avgApiLatency: avg(g.apiLatencies),
+      jsErrorCount: g.jsErrorCount,
+      longTaskCount: g.longTaskCount,
+      sampleCount: g.sampleCount,
+    }
+
+    if (g.releaseId === null) {
+      return withSerializableRetry(() =>
+        prisma.$transaction(
+          async (tx) => {
+            const existing = await tx.routeSummary.findFirst({
+              where: {
+                appId: g.appId,
+                releaseId: null,
+                route: g.route,
+                bucketStart: g.bucketStart,
+                granularity: "hour",
+              },
+              select: { id: true },
+            })
+
+            return existing
+              ? tx.routeSummary.update({ where: { id: existing.id }, data: computed })
+              : tx.routeSummary.create({
+                  data: {
+                    appId: g.appId,
+                    releaseId: null,
+                    route: g.route,
+                    bucketStart: g.bucketStart,
+                    granularity: "hour",
+                    ...computed,
+                  },
+                })
+          },
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        ),
+      )
+    }
 
     return prisma.routeSummary.upsert({
       where: {
         appId_releaseId_route_bucketStart_granularity: {
           appId: g.appId,
-          releaseId: g.releaseId ?? null,
+          releaseId: g.releaseId,
           route: g.route,
           bucketStart: g.bucketStart,
           granularity: "hour",
         },
       },
-      update: {
-        p75Lcp: p75(g.lcpValues),
-        p75Inp: p75(g.inpValues),
-        avgCls: avg(g.clsValues),
-        avgApiLatency: avg(g.apiLatencies),
-        jsErrorCount: g.jsErrorCount,
-        longTaskCount: g.longTaskCount,
-        sampleCount: g.sampleCount,
-      },
+      update: computed,
       create: {
         appId: g.appId,
         releaseId: g.releaseId,
         route: g.route,
         bucketStart: g.bucketStart,
         granularity: "hour",
-        p75Lcp: p75(g.lcpValues),
-        p75Inp: p75(g.inpValues),
-        avgCls: avg(g.clsValues),
-        avgApiLatency: avg(g.apiLatencies),
-        jsErrorCount: g.jsErrorCount,
-        longTaskCount: g.longTaskCount,
-        sampleCount: g.sampleCount,
+        ...computed,
       },
     })
   })

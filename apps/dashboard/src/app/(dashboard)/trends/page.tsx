@@ -1,6 +1,9 @@
 import { getVitalTrend, getErrorTrend } from "@/server/analytics/trends"
 import { TrendChart } from "@/components/TrendChart"
 
+// See (dashboard)/page.tsx for why this is required.
+export const dynamic = "force-dynamic"
+
 const APP_ID = process.env.FIP_APP_ID ?? "sample-app"
 
 const DAYS = 30

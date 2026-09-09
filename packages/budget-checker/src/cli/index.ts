@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 import { existsSync, readFileSync } from "fs"
 import { resolve } from "path"
 import type { BudgetConfig } from "../rules/checker"

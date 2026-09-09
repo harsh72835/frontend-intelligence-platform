@@ -2,6 +2,9 @@ import { getReleaseMetrics } from "@/server/analytics/releases"
 import { detectRegressions } from "@/server/regression"
 import { RegressionBadge } from "@/components/RegressionBadge"
 
+// See (dashboard)/page.tsx for why this is required.
+export const dynamic = "force-dynamic"
+
 const APP_ID = process.env.FIP_APP_ID ?? "sample-app"
 
 function HealthScore({ score }: { score: number | null }) {
