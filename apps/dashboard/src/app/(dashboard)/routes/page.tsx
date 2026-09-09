@@ -3,6 +3,14 @@ import { getReleaseMetrics } from "@/server/analytics/releases"
 import { ReleaseSelector } from "@/components/ReleaseSelector"
 import { Suspense } from "react"
 
+// See (dashboard)/page.tsx for why this is required. This page was missed
+// the first time around — its `ƒ` marker in `next build` output came from
+// using `searchParams`, but Next still attempts a build-time prerender pass
+// with none present, which hits the DB and fails the whole build (fails
+// even against a real DB, since ISR/prerender runs before any request
+// supplies params) — reproduced locally with a placeholder DATABASE_URL.
+export const dynamic = "force-dynamic"
+
 const APP_ID = process.env.FIP_APP_ID ?? "sample-app"
 
 function lcpColor(v: number | null): string {
